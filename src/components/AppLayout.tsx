@@ -14,11 +14,13 @@ import {
   Menu,
   X,
   Boxes,
+  Tags,
 } from "lucide-react";
 import { useState } from "react";
 
 const navItems = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+  { label: "Products", path: "/products", icon: Tags },
   { label: "Shipments", path: "/shipments", icon: Package },
   { label: "New Shipment", path: "/shipments/create", icon: Plus },
   { label: "Suppliers", path: "/suppliers", icon: Truck },

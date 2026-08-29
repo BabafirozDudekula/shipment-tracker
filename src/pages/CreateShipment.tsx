@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Package } from "lucide-react";
+import { ArrowLeft, Package, ArrowRight } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 
@@ -143,7 +143,11 @@ export default function CreateShipment() {
                 </select>
                 {products && products.length === 0 && (
                   <p className="text-xs text-muted-foreground">
-                    No products available. Add products via the Convex dashboard or create a product management page.
+                    No products available.{' '}
+                    <Link to="/products" className="text-primary hover:underline inline-flex items-center gap-0.5">
+                      Add products first
+                      <ArrowRight className="size-3" />
+                    </Link>
                   </p>
                 )}
               </div>

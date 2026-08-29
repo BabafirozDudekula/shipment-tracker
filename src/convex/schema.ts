@@ -129,6 +129,8 @@ const schema = defineSchema(
     products: defineTable({
       name: v.string(),
       sku: v.string(),
+      category: v.string(),
+      quantity: v.number(),
       description: v.string(),
       unit: v.string(),
       weight: v.number(),

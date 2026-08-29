@@ -22,6 +22,7 @@ const SupplierManagement = lazy(() => import("./pages/SupplierManagement.tsx"));
 const WarehouseManagement = lazy(() => import("./pages/WarehouseManagement.tsx"));
 const TransporterManagement = lazy(() => import("./pages/TransporterManagement.tsx"));
 const CustomerManagement = lazy(() => import("./pages/CustomerManagement.tsx"));
+const ProductManagement = lazy(() => import("./pages/ProductManagement.tsx"));
 
 // Simple loading fallback for route transitions
 function RouteLoading() {
@@ -169,6 +170,14 @@ createRoot(document.getElementById("root")!).render(
                 element={
                   <RequireAuth>
                     <HandoverHistory />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/products"
+                element={
+                  <RequireAuth>
+                    <ProductManagement />
                   </RequireAuth>
                 }
               />
