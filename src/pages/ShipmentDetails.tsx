@@ -130,6 +130,7 @@ export default function ShipmentDetails() {
       toast.error("Fill all handover fields");
       return;
     }
+    if (loading) return;
     setLoading(true);
     try {
       const entity = getDestEntities().find(

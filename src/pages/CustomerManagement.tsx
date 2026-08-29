@@ -100,8 +100,15 @@ export default function CustomerManagement() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this customer?")) return;
-    await removeCustomer({ id: id as any });
-    toast.success("Customer deleted");
+    if (loading) return;
+    setLoading(true);
+    try {
+      await removeCustomer({ id: id as any });
+      toast.success("Customer deleted");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete customer");
+    }
+    setLoading(false);
   };
 
   return (

@@ -84,6 +84,22 @@ export const create = mutation({
     expectedDeliveryDate: v.number(),
   },
   handler: async (ctx, args) => {
+    // Validate quantity
+    if (args.quantity <= 0) {
+      throw new Error("Quantity must be greater than zero.");
+    }
+
+    // Validate source != destination (same entity)
+    if (args.sourceType === args.destinationType && args.sourceId === args.destinationId) {
+      throw new Error("Source and destination cannot be the same entity.");
+    }
+
+    // Validate product exists
+    const product = await ctx.db.get(args.productId);
+    if (!product) {
+      throw new Error("Selected product does not exist.");
+    }
+
     const shipmentId = generateShipmentId();
     const now = Date.now();
     const docId = await ctx.db.insert("shipments", {

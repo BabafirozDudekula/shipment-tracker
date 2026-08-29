@@ -105,8 +105,15 @@ export default function WarehouseManagement() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this warehouse?")) return;
-    await removeWarehouse({ id: id as any });
-    toast.success("Warehouse deleted");
+    if (loading) return;
+    setLoading(true);
+    try {
+      await removeWarehouse({ id: id as any });
+      toast.success("Warehouse deleted");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete warehouse");
+    }
+    setLoading(false);
   };
 
   return (

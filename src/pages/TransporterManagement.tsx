@@ -110,8 +110,15 @@ export default function TransporterManagement() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this transporter?")) return;
-    await removeTransporter({ id: id as any });
-    toast.success("Transporter deleted");
+    if (loading) return;
+    setLoading(true);
+    try {
+      await removeTransporter({ id: id as any });
+      toast.success("Transporter deleted");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete transporter");
+    }
+    setLoading(false);
   };
 
   return (

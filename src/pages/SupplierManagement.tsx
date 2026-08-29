@@ -100,8 +100,15 @@ export default function SupplierManagement() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this supplier?")) return;
-    await removeSupplier({ id: id as any });
-    toast.success("Supplier deleted");
+    if (loading) return;
+    setLoading(true);
+    try {
+      await removeSupplier({ id: id as any });
+      toast.success("Supplier deleted");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete supplier");
+    }
+    setLoading(false);
   };
 
   return (

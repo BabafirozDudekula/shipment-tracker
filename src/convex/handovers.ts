@@ -47,6 +47,11 @@ export const create = mutation({
       );
     }
 
+    // Validate not handing over to self
+    if (args.fromPartyId === args.toPartyId) {
+      throw new Error("Cannot handover a shipment to the same party.");
+    }
+
     // Validate shipment is not already delivered
     if (shipment.status === "DELIVERED") {
       throw new Error("Cannot handover a delivered shipment.");

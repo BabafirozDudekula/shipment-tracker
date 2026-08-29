@@ -65,12 +65,40 @@ export default function CreateShipment() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.productId || !formData.sourceType || !formData.sourceId ||
-        !formData.destinationType || !formData.destinationId || !formData.expectedDeliveryDate) {
-      toast.error("Please fill all required fields");
+    if (!formData.productId) {
+      toast.error("Please select a product");
+      return;
+    }
+    if (formData.quantity <= 0) {
+      toast.error("Quantity must be greater than zero");
+      return;
+    }
+    if (!formData.sourceType) {
+      toast.error("Please select a source type");
+      return;
+    }
+    if (!formData.sourceId) {
+      toast.error("Please select a source");
+      return;
+    }
+    if (!formData.destinationType) {
+      toast.error("Please select a destination type");
+      return;
+    }
+    if (!formData.destinationId) {
+      toast.error("Please select a destination");
+      return;
+    }
+    if (formData.sourceType === formData.destinationType && formData.sourceId === formData.destinationId) {
+      toast.error("Source and destination cannot be the same party");
+      return;
+    }
+    if (!formData.expectedDeliveryDate) {
+      toast.error("Please select an expected delivery date");
       return;
     }
 
+    if (loading) return;
     setLoading(true);
     try {
       const product = (products ?? []).find((p: any) => p._id === formData.productId);

@@ -102,7 +102,7 @@ const schema = defineSchema(
       country: v.string(),
       capacity: v.number(),
       createdAt: v.number(),
-    }),
+    }).index("by_code", ["code"]),
 
     transporters: defineTable({
       name: v.string(),

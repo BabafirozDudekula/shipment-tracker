@@ -100,6 +100,15 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("products") },
   handler: async (ctx, args) => {
+    const product = await ctx.db.get(args.id);
+    if (!product) throw new Error("Product not found");
+
+    // Check if any shipments reference this product
+    const shipments = await ctx.db.query("shipments").collect();
+    if (shipments.some((s) => s.productId === args.id)) {
+      throw new Error("Cannot delete this product because it is referenced by existing shipments.");
+    }
+
     await ctx.db.delete(args.id);
     return args.id;
   },
