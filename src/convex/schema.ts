@@ -81,6 +81,7 @@ const schema = defineSchema(
 
     suppliers: defineTable({
       name: v.string(),
+      code: v.string(),
       contactPerson: v.string(),
       email: v.string(),
       phone: v.string(),
@@ -88,7 +89,7 @@ const schema = defineSchema(
       city: v.string(),
       country: v.string(),
       createdAt: v.number(),
-    }),
+    }).index("by_code", ["code"]),
 
     warehouses: defineTable({
       name: v.string(),
@@ -105,6 +106,7 @@ const schema = defineSchema(
 
     transporters: defineTable({
       name: v.string(),
+      code: v.string(),
       contactPerson: v.string(),
       email: v.string(),
       phone: v.string(),
@@ -113,10 +115,11 @@ const schema = defineSchema(
       country: v.string(),
       vehicleType: v.string(),
       createdAt: v.number(),
-    }),
+    }).index("by_code", ["code"]),
 
     customers: defineTable({
       name: v.string(),
+      code: v.string(),
       contactPerson: v.string(),
       email: v.string(),
       phone: v.string(),
@@ -124,7 +127,7 @@ const schema = defineSchema(
       city: v.string(),
       country: v.string(),
       createdAt: v.number(),
-    }),
+    }).index("by_code", ["code"]),
 
     products: defineTable({
       name: v.string(),
@@ -160,7 +163,8 @@ const schema = defineSchema(
       .index("by_shipmentId", ["shipmentId"])
       .index("by_status", ["status"])
       .index("by_source", ["sourceType", "sourceId"])
-      .index("by_destination", ["destinationType", "destinationId"]),
+      .index("by_destination", ["destinationType", "destinationId"])
+      .index("by_currentParty", ["currentResponsiblePartyType", "currentResponsiblePartyId"]),
 
     handovers: defineTable({
       shipmentId: v.string(),
