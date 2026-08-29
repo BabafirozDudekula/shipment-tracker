@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 const fields: FieldDef[] = [
   { name: "name", label: "Company Name", placeholder: "Retail Corp" },
+  { name: "code", label: "Customer ID", placeholder: "CUS-001" },
   { name: "contactPerson", label: "Contact Person", placeholder: "Sarah Williams" },
   { name: "email", label: "Email", type: "email", placeholder: "orders@retailcorp.com" },
   { name: "phone", label: "Phone", placeholder: "+1 234 567 8900" },
@@ -20,6 +21,7 @@ const fields: FieldDef[] = [
 
 const emptyValues: Record<string, string | number> = {
   name: "",
+  code: "",
   contactPerson: "",
   email: "",
   phone: "",
@@ -49,6 +51,7 @@ export default function CustomerManagement() {
     setEditing(c);
     setValues({
       name: c.name,
+      code: c.code,
       contactPerson: c.contactPerson,
       email: c.email,
       phone: c.phone,
@@ -66,6 +69,7 @@ export default function CustomerManagement() {
         await updateCustomer({
           id: editing._id,
           name: values.name as string,
+          code: (values.code as string) || "",
           contactPerson: values.contactPerson as string,
           email: values.email as string,
           phone: values.phone as string,
@@ -77,6 +81,7 @@ export default function CustomerManagement() {
       } else {
         await createCustomer({
           name: values.name as string,
+          code: (values.code as string) || "",
           contactPerson: values.contactPerson as string,
           email: values.email as string,
           phone: values.phone as string,
@@ -151,8 +156,15 @@ export default function CustomerManagement() {
                     {customers.map((c) => (
                       <tr key={c._id} className="hover:bg-accent/30 transition-colors">
                         <td className="px-5 py-3">
-                          <p className="font-medium text-foreground">{c.name}</p>
-                          <p className="text-xs text-muted-foreground">{c.email}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex rounded border border-border bg-muted px-2 py-0.5 text-xs font-mono text-foreground">
+                              {c.code}
+                            </span>
+                            <div>
+                              <p className="font-medium text-foreground">{c.name}</p>
+                              <p className="text-xs text-muted-foreground">{c.email}</p>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-5 py-3">
                           <p className="text-foreground">{c.contactPerson}</p>

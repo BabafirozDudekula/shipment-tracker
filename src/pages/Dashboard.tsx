@@ -1,4 +1,4 @@
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,8 +9,11 @@ import {
   Clock,
   ArrowRight,
   Plus,
+  Database,
 } from "lucide-react";
 import { Link } from "react-router";
+import { toast } from "sonner";
+import { useState } from "react";
 import { motion } from "framer-motion";
 
 const statCards = [
@@ -42,18 +45,46 @@ const statCards = [
 
 export default function Dashboard() {
   const stats = useQuery(api.shipments.dashboardStats);
+  const seedData = useMutation(api.seed.seedEntities);
+  const [seeding, setSeeding] = useState(false);
+
+  const handleSeed = async () => {
+    setSeeding(true);
+    try {
+      const result = await seedData();
+      if (result.skipped) {
+        toast.info("Sample data already exists");
+      } else {
+        toast.success("Sample data seeded! Refreshing...");
+        window.location.reload();
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to seed data");
+    }
+    setSeeding(false);
+  };
   const recentShipments = useQuery(api.shipments.list);
 
   return (
     <AppLayout>
       <div className="space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Dashboard
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Overview of your supply chain operations
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              Dashboard
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Overview of your supply chain operations
+            </p>
+          </div>
+          <button
+            onClick={handleSeed}
+            disabled={seeding}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-4 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+          >
+            <Database className="size-3.5" />
+            {seeding ? "Seeding..." : "Seed Sample Data"}
+          </button>
         </div>
 
         {/* Stats */}

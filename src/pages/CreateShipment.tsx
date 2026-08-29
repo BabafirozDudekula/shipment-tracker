@@ -13,6 +13,7 @@ import { toast } from "sonner";
 interface EntityOption {
   _id: string;
   name: string;
+  code?: string;
   city?: string;
   country?: string;
 }
@@ -50,11 +51,16 @@ export default function CreateShipment() {
   const getSourceOptions = () => ["SUPPLIER", "WAREHOUSE", "TRANSPORTER"];
   const getDestOptions = () => ["WAREHOUSE", "TRANSPORTER", "CUSTOMER"];
 
+  const getEntityLabel = (entity: EntityOption): string => {
+    if (entity.code) return `${entity.name} (${entity.code})`;
+    return entity.city ? `${entity.name} (${entity.city})` : entity.name;
+  };
+
   const getEntityName = (type: string, id: string): string => {
     const entities = getEntities(type);
     const entity = entities.find((e) => e._id === id);
     if (!entity) return id;
-    return entity.city ? `${entity.name} (${entity.city})` : entity.name;
+    return getEntityLabel(entity);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -202,11 +208,15 @@ export default function CreateShipment() {
                     required
                   >
                     <option value="">Select source...</option>
-                    {getEntities(formData.sourceType).map((e: EntityOption) => (
-                      <option key={e._id} value={e._id}>
-                        {e.name}{e.city ? ` (${e.city})` : ""}
-                      </option>
-                    ))}
+                    {getEntities(formData.sourceType).length > 0 ? (
+                      getEntities(formData.sourceType).map((e: EntityOption) => (
+                        <option key={e._id} value={e._id}>
+                          {getEntityLabel(e)}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No {formData.sourceType.toLowerCase()}s available</option>
+                    )}
                   </select>
                 </div>
               )}
@@ -247,12 +257,25 @@ export default function CreateShipment() {
                     required
                   >
                     <option value="">Select destination...</option>
-                    {getEntities(formData.destinationType).map((e: EntityOption) => (
-                      <option key={e._id} value={e._id}>
-                        {e.name}{e.city ? ` (${e.city})` : ""}
-                      </option>
-                    ))}
+                    {getEntities(formData.destinationType).length > 0 ? (
+                      getEntities(formData.destinationType).map((e: EntityOption) => (
+                        <option key={e._id} value={e._id}>
+                          {getEntityLabel(e)}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No {formData.destinationType.toLowerCase()}s available</option>
+                    )}
                   </select>
+                  {getEntities(formData.destinationType).length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      No {formData.destinationType.toLowerCase()}s found.{" "}
+                      <Link to={`/${formData.destinationType.toLowerCase()}s`} className="text-primary hover:underline inline-flex items-center gap-0.5">
+                        Add {formData.destinationType.toLowerCase()}s first
+                        <ArrowRight className="size-3" />
+                      </Link>
+                    </p>
+                  )}
                 </div>
               )}
 

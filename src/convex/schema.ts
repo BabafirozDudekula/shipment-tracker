@@ -81,7 +81,7 @@ const schema = defineSchema(
 
     suppliers: defineTable({
       name: v.string(),
-      code: v.string(),
+      code: v.optional(v.string()),
       contactPerson: v.string(),
       email: v.string(),
       phone: v.string(),
@@ -106,7 +106,7 @@ const schema = defineSchema(
 
     transporters: defineTable({
       name: v.string(),
-      code: v.string(),
+      code: v.optional(v.string()),
       contactPerson: v.string(),
       email: v.string(),
       phone: v.string(),
@@ -119,7 +119,7 @@ const schema = defineSchema(
 
     customers: defineTable({
       name: v.string(),
-      code: v.string(),
+      code: v.optional(v.string()),
       contactPerson: v.string(),
       email: v.string(),
       phone: v.string(),

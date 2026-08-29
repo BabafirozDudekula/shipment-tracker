@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 const fields: FieldDef[] = [
   { name: "name", label: "Company Name", placeholder: "FastFreight Logistics" },
+  { name: "code", label: "Transporter ID", placeholder: "TRN-001" },
   { name: "contactPerson", label: "Contact Person", placeholder: "Mike Johnson" },
   { name: "email", label: "Email", type: "email", placeholder: "dispatch@fastfreight.com" },
   { name: "phone", label: "Phone", placeholder: "+1 234 567 8900" },
@@ -26,6 +27,7 @@ const fields: FieldDef[] = [
 
 const emptyValues: Record<string, string | number> = {
   name: "",
+  code: "",
   contactPerson: "",
   email: "",
   phone: "",
@@ -56,6 +58,7 @@ export default function TransporterManagement() {
     setEditing(t);
     setValues({
       name: t.name,
+      code: t.code,
       contactPerson: t.contactPerson,
       email: t.email,
       phone: t.phone,
@@ -74,6 +77,7 @@ export default function TransporterManagement() {
         await updateTransporter({
           id: editing._id,
           name: values.name as string,
+          code: (values.code as string) || "",
           contactPerson: values.contactPerson as string,
           email: values.email as string,
           phone: values.phone as string,
@@ -86,6 +90,7 @@ export default function TransporterManagement() {
       } else {
         await createTransporter({
           name: values.name as string,
+          code: (values.code as string) || "",
           contactPerson: values.contactPerson as string,
           email: values.email as string,
           phone: values.phone as string,
@@ -164,8 +169,15 @@ export default function TransporterManagement() {
                     {transporters.map((t) => (
                       <tr key={t._id} className="hover:bg-accent/30 transition-colors">
                         <td className="px-5 py-3">
-                          <p className="font-medium text-foreground">{t.name}</p>
-                          <p className="text-xs text-muted-foreground">{t.email}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex rounded border border-border bg-muted px-2 py-0.5 text-xs font-mono text-foreground">
+                              {t.code}
+                            </span>
+                            <div>
+                              <p className="font-medium text-foreground">{t.name}</p>
+                              <p className="text-xs text-muted-foreground">{t.email}</p>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-5 py-3">
                           <p className="text-foreground">{t.contactPerson}</p>
