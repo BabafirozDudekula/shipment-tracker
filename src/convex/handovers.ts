@@ -1,17 +1,33 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { partyTypeValidator, handoverStatusValidator } from "./schema";
 
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("handovers").order("desc").collect();
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    // Get user's shipment IDs to scope handovers
+    const userShipments = await ctx.db
+      .query("shipments")
+      .withIndex("by_createdBy", (q) => q.eq("createdBy", userId))
+      .collect();
+    const userShipmentIds = new Set(userShipments.map((s) => s.shipmentId));
+    const allHandovers = await ctx.db.query("handovers").order("desc").collect();
+    return allHandovers.filter((h) => userShipmentIds.has(h.shipmentId));
   },
 });
 
 export const getByShipment = query({
   args: { shipmentDocId: v.id("shipments") },
   handler: async (ctx, args) => {
+    // Verify user owns this shipment
+    const userId = await getAuthUserId(ctx);
+    const shipment = await ctx.db.get(args.shipmentDocId);
+    if (!shipment) return [];
+    if (userId && shipment.createdBy && shipment.createdBy !== userId) return [];
+
     return await ctx.db
       .query("handovers")
       .withIndex("by_shipmentDoc", (q) =>
@@ -35,8 +51,14 @@ export const create = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
     const shipment = await ctx.db.get(args.shipmentDocId);
     if (!shipment) {
+      throw new Error("Shipment not found");
+    }
+    if (shipment.createdBy && shipment.createdBy !== userId) {
       throw new Error("Shipment not found");
     }
 
@@ -72,6 +94,7 @@ export const create = mutation({
       handoverStatus: "PENDING",
       notes: args.notes,
       createdAt: now,
+      createdBy: userId,
     });
 
     return handoverId;
@@ -83,10 +106,18 @@ export const accept = mutation({
     id: v.id("handovers"),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
     const handover = await ctx.db.get(args.id);
     if (!handover) {
       throw new Error("Handover not found");
     }
+
+    // Verify user owns the shipment
+    const shipment = await ctx.db.get(handover.shipmentDocId);
+    if (!shipment) throw new Error("Shipment not found");
+    if (shipment.createdBy && shipment.createdBy !== userId) throw new Error("Handover not found");
 
     if (handover.handoverStatus !== "PENDING") {
       throw new Error(
@@ -116,10 +147,18 @@ export const reject = mutation({
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
     const handover = await ctx.db.get(args.id);
     if (!handover) {
       throw new Error("Handover not found");
     }
+
+    // Verify user owns the shipment
+    const shipment = await ctx.db.get(handover.shipmentDocId);
+    if (!shipment) throw new Error("Shipment not found");
+    if (shipment.createdBy && shipment.createdBy !== userId) throw new Error("Handover not found");
 
     if (handover.handoverStatus !== "PENDING") {
       throw new Error(
@@ -135,10 +174,19 @@ export const reject = mutation({
 export const pendingCount = query({
   args: {},
   handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return 0;
+
+    const userShipments = await ctx.db
+      .query("shipments")
+      .withIndex("by_createdBy", (q) => q.eq("createdBy", userId))
+      .collect();
+    const userShipmentIds = new Set(userShipments.map((s) => s.shipmentId));
+
     const pending = await ctx.db
       .query("handovers")
       .withIndex("by_status", (q) => q.eq("handoverStatus", "PENDING"))
       .collect();
-    return pending.length;
+    return pending.filter((h) => userShipmentIds.has(h.shipmentId)).length;
   },
 });

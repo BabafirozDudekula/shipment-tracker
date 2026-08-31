@@ -1,17 +1,28 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("customers").order("desc").collect();
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    return await ctx.db
+      .query("customers")
+      .withIndex("by_createdBy", (q) => q.eq("createdBy", userId))
+      .order("desc")
+      .collect();
   },
 });
 
 export const get = query({
   args: { id: v.id("customers") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const userId = await getAuthUserId(ctx);
+    const c = await ctx.db.get(args.id);
+    if (!c) return null;
+    if (userId && c.createdBy && c.createdBy !== userId) return null;
+    return c;
   },
 });
 
@@ -27,6 +38,9 @@ export const create = mutation({
     country: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
     const name = args.name.trim();
     const code = args.code?.trim() || "";
     if (!name) throw new Error("Customer name cannot be empty");
@@ -52,6 +66,7 @@ export const create = mutation({
       city: args.city.trim(),
       country: args.country.trim(),
       createdAt: Date.now(),
+      createdBy: userId,
     });
   },
 });
@@ -69,17 +84,24 @@ export const update = mutation({
     country: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
+    const existing = await ctx.db.get(args.id);
+    if (!existing) throw new Error("Customer not found");
+    if (existing.createdBy && existing.createdBy !== userId) throw new Error("Customer not found");
+
     const name = args.name.trim();
     const code = args.code?.trim() || "";
     if (!name) throw new Error("Customer name cannot be empty");
     if (!code) throw new Error("Customer ID cannot be empty");
 
     const normalizedCode = code.toLowerCase();
-    const existing = await ctx.db
+    const codeCheck = await ctx.db
       .query("customers")
       .withIndex("by_code", (q) => q.eq("code", normalizedCode))
       .first();
-    if (existing && existing._id !== args.id) {
+    if (codeCheck && codeCheck._id !== args.id) {
       throw new Error(`Customer ID "${code}" already exists. Please use a unique Customer ID.`);
     }
 
@@ -101,8 +123,12 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("customers") },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
     const customer = await ctx.db.get(args.id);
     if (!customer) throw new Error("Customer not found");
+    if (customer.createdBy && customer.createdBy !== userId) throw new Error("Customer not found");
 
     const srcShipments = await ctx.db
       .query("shipments")

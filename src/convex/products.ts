@@ -1,17 +1,28 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("products").order("desc").collect();
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    return await ctx.db
+      .query("products")
+      .withIndex("by_createdBy", (q) => q.eq("createdBy", userId))
+      .order("desc")
+      .collect();
   },
 });
 
 export const get = query({
   args: { id: v.id("products") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const userId = await getAuthUserId(ctx);
+    const p = await ctx.db.get(args.id);
+    if (!p) return null;
+    if (userId && p.createdBy && p.createdBy !== userId) return null;
+    return p;
   },
 });
 
@@ -26,14 +37,13 @@ export const create = mutation({
     weight: v.number(),
   },
   handler: async (ctx, args) => {
-    // Validate: name and SKU must not be empty
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
     if (!args.name.trim()) throw new Error("Product name cannot be empty");
     if (!args.sku.trim()) throw new Error("SKU cannot be empty");
-
-    // Validate: quantity cannot be negative
     if (args.quantity < 0) throw new Error("Quantity cannot be negative");
 
-    // Check for duplicate SKU
     const existing = await ctx.db
       .query("products")
       .withIndex("by_sku", (q) => q.eq("sku", args.sku.trim()))
@@ -51,6 +61,7 @@ export const create = mutation({
       unit: args.unit.trim(),
       weight: args.weight,
       createdAt: Date.now(),
+      createdBy: userId,
     });
   },
 });
@@ -67,14 +78,17 @@ export const update = mutation({
     weight: v.number(),
   },
   handler: async (ctx, args) => {
-    // Validate: name and SKU must not be empty
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
+    const existingProduct = await ctx.db.get(args.id);
+    if (!existingProduct) throw new Error("Product not found");
+    if (existingProduct.createdBy && existingProduct.createdBy !== userId) throw new Error("Product not found");
+
     if (!args.name.trim()) throw new Error("Product name cannot be empty");
     if (!args.sku.trim()) throw new Error("SKU cannot be empty");
-
-    // Validate: quantity cannot be negative
     if (args.quantity < 0) throw new Error("Quantity cannot be negative");
 
-    // Check for duplicate SKU (exclude the product being updated)
     const existing = await ctx.db
       .query("products")
       .withIndex("by_sku", (q) => q.eq("sku", args.sku.trim()))
@@ -100,10 +114,13 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("products") },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
     const product = await ctx.db.get(args.id);
     if (!product) throw new Error("Product not found");
+    if (product.createdBy && product.createdBy !== userId) throw new Error("Product not found");
 
-    // Check if any shipments reference this product
     const shipments = await ctx.db.query("shipments").collect();
     if (shipments.some((s) => s.productId === args.id)) {
       throw new Error("Cannot delete this product because it is referenced by existing shipments.");

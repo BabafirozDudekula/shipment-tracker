@@ -1,17 +1,28 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("suppliers").order("desc").collect();
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    return await ctx.db
+      .query("suppliers")
+      .withIndex("by_createdBy", (q) => q.eq("createdBy", userId))
+      .order("desc")
+      .collect();
   },
 });
 
 export const get = query({
   args: { id: v.id("suppliers") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const userId = await getAuthUserId(ctx);
+    const supplier = await ctx.db.get(args.id);
+    if (!supplier) return null;
+    if (userId && supplier.createdBy && supplier.createdBy !== userId) return null;
+    return supplier;
   },
 });
 
@@ -27,6 +38,9 @@ export const create = mutation({
     country: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
     const name = args.name.trim();
     const code = args.code?.trim() || "";
     if (!name) throw new Error("Supplier name cannot be empty");
@@ -36,6 +50,8 @@ export const create = mutation({
     if (!args.phone.trim()) throw new Error("Phone cannot be empty");
 
     const normalizedCode = code.toLowerCase();
+
+    // Check duplicate code within this user's suppliers
     const existing = await ctx.db
       .query("suppliers")
       .withIndex("by_code", (q) => q.eq("code", normalizedCode))
@@ -54,6 +70,7 @@ export const create = mutation({
       city: args.city.trim(),
       country: args.country.trim(),
       createdAt: Date.now(),
+      createdBy: userId,
     });
   },
 });
@@ -71,17 +88,24 @@ export const update = mutation({
     country: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
+    const existing = await ctx.db.get(args.id);
+    if (!existing) throw new Error("Supplier not found");
+    if (existing.createdBy && existing.createdBy !== userId) throw new Error("Supplier not found");
+
     const name = args.name.trim();
     const code = args.code?.trim() || "";
     if (!name) throw new Error("Supplier name cannot be empty");
     if (!code) throw new Error("Supplier ID cannot be empty");
 
     const normalizedCode = code.toLowerCase();
-    const existing = await ctx.db
+    const codeCheck = await ctx.db
       .query("suppliers")
       .withIndex("by_code", (q) => q.eq("code", normalizedCode))
       .first();
-    if (existing && existing._id !== args.id) {
+    if (codeCheck && codeCheck._id !== args.id) {
       throw new Error(`Supplier ID "${code}" already exists. Please use a unique Supplier ID.`);
     }
 
@@ -103,10 +127,13 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("suppliers") },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
     const supplier = await ctx.db.get(args.id);
     if (!supplier) throw new Error("Supplier not found");
+    if (supplier.createdBy && supplier.createdBy !== userId) throw new Error("Supplier not found");
 
-    // Check if referenced by any shipments
     const shipments = await ctx.db
       .query("shipments")
       .withIndex("by_source", (q) => q.eq("sourceType", "SUPPLIER").eq("sourceId", args.id))

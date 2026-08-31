@@ -1,17 +1,28 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("warehouses").order("desc").collect();
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    return await ctx.db
+      .query("warehouses")
+      .withIndex("by_createdBy", (q) => q.eq("createdBy", userId))
+      .order("desc")
+      .collect();
   },
 });
 
 export const get = query({
   args: { id: v.id("warehouses") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const userId = await getAuthUserId(ctx);
+    const wh = await ctx.db.get(args.id);
+    if (!wh) return null;
+    if (userId && wh.createdBy && wh.createdBy !== userId) return null;
+    return wh;
   },
 });
 
@@ -28,6 +39,9 @@ export const create = mutation({
     capacity: v.number(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
     const name = args.name.trim();
     const code = args.code.trim();
     if (!name) throw new Error("Warehouse name cannot be empty");
@@ -35,7 +49,6 @@ export const create = mutation({
     if (!args.contactPerson.trim()) throw new Error("Contact person cannot be empty");
     if (args.capacity < 0) throw new Error("Capacity cannot be negative");
 
-    // Check duplicate code across all shipments by querying each entity table
     const normalizedCode = code.toLowerCase();
 
     // Check suppliers
@@ -65,7 +78,7 @@ export const create = mutation({
       throw new Error(`Code "${code}" already exists as a Customer. Please use a unique code.`);
     }
 
-    // Check other warehouses (scan since no by_code index)
+    // Check other warehouses
     const allWarehouses = await ctx.db.query("warehouses").collect();
     if (allWarehouses.some((w) => w.code.toLowerCase() === normalizedCode)) {
       throw new Error(`Warehouse ID "${code}" already exists. Please use a unique Warehouse ID.`);
@@ -82,6 +95,7 @@ export const create = mutation({
       country: args.country.trim(),
       capacity: args.capacity,
       createdAt: Date.now(),
+      createdBy: userId,
     });
   },
 });
@@ -100,6 +114,13 @@ export const update = mutation({
     capacity: v.number(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
+    const existingWh = await ctx.db.get(args.id);
+    if (!existingWh) throw new Error("Warehouse not found");
+    if (existingWh.createdBy && existingWh.createdBy !== userId) throw new Error("Warehouse not found");
+
     const name = args.name.trim();
     const code = args.code.trim();
     if (!name) throw new Error("Warehouse name cannot be empty");
@@ -158,8 +179,12 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("warehouses") },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
     const warehouse = await ctx.db.get(args.id);
     if (!warehouse) throw new Error("Warehouse not found");
+    if (warehouse.createdBy && warehouse.createdBy !== userId) throw new Error("Warehouse not found");
 
     const shipments = await ctx.db
       .query("shipments")

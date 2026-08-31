@@ -89,7 +89,10 @@ const schema = defineSchema(
       city: v.string(),
       country: v.string(),
       createdAt: v.number(),
-    }).index("by_code", ["code"]),
+      createdBy: v.optional(v.id("users")),
+    })
+      .index("by_code", ["code"])
+      .index("by_createdBy", ["createdBy"]),
 
     warehouses: defineTable({
       name: v.string(),
@@ -102,7 +105,10 @@ const schema = defineSchema(
       country: v.string(),
       capacity: v.number(),
       createdAt: v.number(),
-    }).index("by_code", ["code"]),
+      createdBy: v.optional(v.id("users")),
+    })
+      .index("by_code", ["code"])
+      .index("by_createdBy", ["createdBy"]),
 
     transporters: defineTable({
       name: v.string(),
@@ -115,7 +121,10 @@ const schema = defineSchema(
       country: v.string(),
       vehicleType: v.string(),
       createdAt: v.number(),
-    }).index("by_code", ["code"]),
+      createdBy: v.optional(v.id("users")),
+    })
+      .index("by_code", ["code"])
+      .index("by_createdBy", ["createdBy"]),
 
     customers: defineTable({
       name: v.string(),
@@ -127,7 +136,10 @@ const schema = defineSchema(
       city: v.string(),
       country: v.string(),
       createdAt: v.number(),
-    }).index("by_code", ["code"]),
+      createdBy: v.optional(v.id("users")),
+    })
+      .index("by_code", ["code"])
+      .index("by_createdBy", ["createdBy"]),
 
     products: defineTable({
       name: v.string(),
@@ -138,7 +150,10 @@ const schema = defineSchema(
       unit: v.string(),
       weight: v.number(),
       createdAt: v.number(),
-    }).index("by_sku", ["sku"]),
+      createdBy: v.optional(v.id("users")),
+    })
+      .index("by_sku", ["sku"])
+      .index("by_createdBy", ["createdBy"]),
 
     shipments: defineTable({
       shipmentId: v.string(),
@@ -159,12 +174,14 @@ const schema = defineSchema(
       expectedDeliveryDate: v.number(),
       createdAt: v.number(),
       updatedAt: v.number(),
+      createdBy: v.optional(v.id("users")),
     })
       .index("by_shipmentId", ["shipmentId"])
       .index("by_status", ["status"])
       .index("by_source", ["sourceType", "sourceId"])
       .index("by_destination", ["destinationType", "destinationId"])
-      .index("by_currentParty", ["currentResponsiblePartyType", "currentResponsiblePartyId"]),
+      .index("by_currentParty", ["currentResponsiblePartyType", "currentResponsiblePartyId"])
+      .index("by_createdBy", ["createdBy"]),
 
     handovers: defineTable({
       shipmentId: v.string(),
@@ -180,10 +197,12 @@ const schema = defineSchema(
       handoverStatus: handoverStatusValidator,
       notes: v.optional(v.string()),
       createdAt: v.number(),
+      createdBy: v.optional(v.id("users")),
     })
       .index("by_shipment", ["shipmentId"])
       .index("by_shipmentDoc", ["shipmentDocId"])
-      .index("by_status", ["handoverStatus"]),
+      .index("by_status", ["handoverStatus"])
+      .index("by_createdBy", ["createdBy"]),
   },
   {
     schemaValidation: false,

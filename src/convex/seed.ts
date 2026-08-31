@@ -1,21 +1,28 @@
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const seedEntities = mutation({
   args: {},
   handler: async (ctx) => {
-    // Check if data already exists
-    const existingSuppliers = await ctx.db.query("suppliers").first();
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
+    // Check if THIS user already has data
+    const existingSuppliers = await ctx.db
+      .query("suppliers")
+      .withIndex("by_createdBy", (q) => q.eq("createdBy", userId))
+      .first();
     if (existingSuppliers) {
-      return { message: "Data already seeded", skipped: true };
+      return { message: "Data already seeded for your account", skipped: true };
     }
 
     const now = Date.now();
 
     // Seed Suppliers
-    await ctx.db.insert("suppliers", {
+    const s1 = await ctx.db.insert("suppliers", {
       name: "ABC Electronics",
-      code: "SUP-001",
+      code: "sup-001",
       contactPerson: "Rajesh Kumar",
       email: "rajesh@abcelectronics.com",
       phone: "+91 98765 43210",
@@ -23,10 +30,11 @@ export const seedEntities = mutation({
       city: "Hyderabad",
       country: "India",
       createdAt: now,
+      createdBy: userId,
     });
-    await ctx.db.insert("suppliers", {
+    const s2 = await ctx.db.insert("suppliers", {
       name: "Global Garments",
-      code: "SUP-002",
+      code: "sup-002",
       contactPerson: "Priya Sharma",
       email: "priya@globalgarments.com",
       phone: "+91 87654 32109",
@@ -34,12 +42,13 @@ export const seedEntities = mutation({
       city: "Mumbai",
       country: "India",
       createdAt: now,
+      createdBy: userId,
     });
 
     // Seed Warehouses
-    await ctx.db.insert("warehouses", {
+    const w1 = await ctx.db.insert("warehouses", {
       name: "Hyderabad Central Warehouse",
-      code: "WH-001",
+      code: "wh-001",
       contactPerson: "Suresh Reddy",
       email: "suresh@hydwarehouse.com",
       phone: "+91 76543 21098",
@@ -48,10 +57,11 @@ export const seedEntities = mutation({
       country: "India",
       capacity: 50000,
       createdAt: now,
+      createdBy: userId,
     });
-    await ctx.db.insert("warehouses", {
+    const w2 = await ctx.db.insert("warehouses", {
       name: "Secunderabad Distribution Center",
-      code: "WH-002",
+      code: "wh-002",
       contactPerson: "Anitha Nair",
       email: "anitha@secdistcenter.com",
       phone: "+91 65432 10987",
@@ -60,12 +70,13 @@ export const seedEntities = mutation({
       country: "India",
       capacity: 35000,
       createdAt: now,
+      createdBy: userId,
     });
 
     // Seed Transporters
-    await ctx.db.insert("transporters", {
+    const t1 = await ctx.db.insert("transporters", {
       name: "FastTrack Logistics",
-      code: "TRN-001",
+      code: "trn-001",
       contactPerson: "Mohammed Ali",
       email: "ali@fasttracklogistics.com",
       phone: "+91 54321 09876",
@@ -74,10 +85,11 @@ export const seedEntities = mutation({
       country: "India",
       vehicleType: "Truck",
       createdAt: now,
+      createdBy: userId,
     });
-    await ctx.db.insert("transporters", {
+    const t2 = await ctx.db.insert("transporters", {
       name: "BlueLine Transport",
-      code: "TRN-002",
+      code: "trn-002",
       contactPerson: "Vikram Patel",
       email: "vikram@bluelinetransport.com",
       phone: "+91 43210 98765",
@@ -86,12 +98,13 @@ export const seedEntities = mutation({
       country: "India",
       vehicleType: "Container Ship",
       createdAt: now,
+      createdBy: userId,
     });
 
     // Seed Customers
-    await ctx.db.insert("customers", {
+    const c1 = await ctx.db.insert("customers", {
       name: "XYZ Retail Pvt Ltd",
-      code: "CUS-001",
+      code: "cus-001",
       contactPerson: "Deepika Menon",
       email: "deepika@xyzretail.com",
       phone: "+91 32109 87654",
@@ -99,10 +112,11 @@ export const seedEntities = mutation({
       city: "Bangalore",
       country: "India",
       createdAt: now,
+      createdBy: userId,
     });
-    await ctx.db.insert("customers", {
+    const c2 = await ctx.db.insert("customers", {
       name: "Metro Stores",
-      code: "CUS-002",
+      code: "cus-002",
       contactPerson: "Arjun Das",
       email: "arjun@metrostores.com",
       phone: "+91 21098 76543",
@@ -110,8 +124,9 @@ export const seedEntities = mutation({
       city: "Hyderabad",
       country: "India",
       createdAt: now,
+      createdBy: userId,
     });
 
-    return { message: "Sample data seeded successfully", skipped: false };
+    return { message: "Sample data seeded successfully for your account", skipped: false };
   },
 });

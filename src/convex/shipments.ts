@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { shipmentStatusValidator, partyTypeValidator, VALID_TRANSITIONS } from "./schema";
 
 // Generate a unique shipment ID
@@ -13,25 +14,40 @@ function generateShipmentId(): string {
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("shipments").order("desc").collect();
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    return await ctx.db
+      .query("shipments")
+      .withIndex("by_createdBy", (q) => q.eq("createdBy", userId))
+      .order("desc")
+      .collect();
   },
 });
 
 export const get = query({
   args: { id: v.id("shipments") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const userId = await getAuthUserId(ctx);
+    const shipment = await ctx.db.get(args.id);
+    if (!shipment) return null;
+    // Only return if owned by current user
+    if (userId && shipment.createdBy && shipment.createdBy !== userId) return null;
+    return shipment;
   },
 });
 
 export const getByShipmentId = query({
   args: { shipmentId: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
     const results = await ctx.db
       .query("shipments")
       .withIndex("by_shipmentId", (q) => q.eq("shipmentId", args.shipmentId))
       .collect();
-    return results[0] ?? null;
+    const shipment = results[0] ?? null;
+    if (!shipment) return null;
+    if (userId && shipment.createdBy && shipment.createdBy !== userId) return null;
+    return shipment;
   },
 });
 
@@ -50,11 +66,23 @@ export const getHandovers = query({
 export const dashboardStats = query({
   args: {},
   handler: async (ctx) => {
-    const allShipments = await ctx.db.query("shipments").collect();
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return { total: 0, inTransit: 0, delivered: 0, pendingHandovers: 0 };
+
+    const allShipments = await ctx.db
+      .query("shipments")
+      .withIndex("by_createdBy", (q) => q.eq("createdBy", userId))
+      .collect();
+
+    // Get shipment IDs owned by user to filter handovers
+    const userShipmentIds = new Set(allShipments.map(s => s.shipmentId));
+
     const pendingHandovers = await ctx.db
       .query("handovers")
       .withIndex("by_status", (q) => q.eq("handoverStatus", "PENDING"))
       .collect();
+
+    const userPendingHandovers = pendingHandovers.filter(h => userShipmentIds.has(h.shipmentId));
 
     return {
       total: allShipments.length,
@@ -65,7 +93,7 @@ export const dashboardStats = query({
           s.status === "OUT_FOR_DELIVERY",
       ).length,
       delivered: allShipments.filter((s) => s.status === "DELIVERED").length,
-      pendingHandovers: pendingHandovers.length,
+      pendingHandovers: userPendingHandovers.length,
     };
   },
 });
@@ -84,6 +112,9 @@ export const create = mutation({
     expectedDeliveryDate: v.number(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in to create a shipment");
+
     // Validate quantity
     if (args.quantity <= 0) {
       throw new Error("Quantity must be greater than zero.");
@@ -94,9 +125,12 @@ export const create = mutation({
       throw new Error("Source and destination cannot be the same entity.");
     }
 
-    // Validate product exists
+    // Validate product exists and belongs to user
     const product = await ctx.db.get(args.productId);
     if (!product) {
+      throw new Error("Selected product does not exist.");
+    }
+    if (product.createdBy && product.createdBy !== userId) {
       throw new Error("Selected product does not exist.");
     }
 
@@ -121,6 +155,7 @@ export const create = mutation({
       expectedDeliveryDate: args.expectedDeliveryDate,
       createdAt: now,
       updatedAt: now,
+      createdBy: userId,
     });
     return { shipmentId, docId };
   },
@@ -132,8 +167,14 @@ export const updateStatus = mutation({
     newStatus: shipmentStatusValidator,
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
     const shipment = await ctx.db.get(args.id);
     if (!shipment) {
+      throw new Error("Shipment not found");
+    }
+    if (shipment.createdBy && shipment.createdBy !== userId) {
       throw new Error("Shipment not found");
     }
 
@@ -156,6 +197,15 @@ export const updateStatus = mutation({
 export const remove = mutation({
   args: { id: v.id("shipments") },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
+    const shipment = await ctx.db.get(args.id);
+    if (!shipment) throw new Error("Shipment not found");
+    if (shipment.createdBy && shipment.createdBy !== userId) {
+      throw new Error("Shipment not found");
+    }
+
     // Also remove related handovers
     const handovers = await ctx.db
       .query("handovers")

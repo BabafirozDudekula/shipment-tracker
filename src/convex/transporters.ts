@@ -1,17 +1,28 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("transporters").order("desc").collect();
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    return await ctx.db
+      .query("transporters")
+      .withIndex("by_createdBy", (q) => q.eq("createdBy", userId))
+      .order("desc")
+      .collect();
   },
 });
 
 export const get = query({
   args: { id: v.id("transporters") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const userId = await getAuthUserId(ctx);
+    const t = await ctx.db.get(args.id);
+    if (!t) return null;
+    if (userId && t.createdBy && t.createdBy !== userId) return null;
+    return t;
   },
 });
 
@@ -28,6 +39,9 @@ export const create = mutation({
     vehicleType: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
     const name = args.name.trim();
     const code = args.code?.trim() || "";
     if (!name) throw new Error("Transporter name cannot be empty");
@@ -54,6 +68,7 @@ export const create = mutation({
       country: args.country.trim(),
       vehicleType: args.vehicleType.trim(),
       createdAt: Date.now(),
+      createdBy: userId,
     });
   },
 });
@@ -72,17 +87,24 @@ export const update = mutation({
     vehicleType: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
+    const existing = await ctx.db.get(args.id);
+    if (!existing) throw new Error("Transporter not found");
+    if (existing.createdBy && existing.createdBy !== userId) throw new Error("Transporter not found");
+
     const name = args.name.trim();
     const code = args.code?.trim() || "";
     if (!name) throw new Error("Transporter name cannot be empty");
     if (!code) throw new Error("Transporter ID cannot be empty");
 
     const normalizedCode = code.toLowerCase();
-    const existing = await ctx.db
+    const codeCheck = await ctx.db
       .query("transporters")
       .withIndex("by_code", (q) => q.eq("code", normalizedCode))
       .first();
-    if (existing && existing._id !== args.id) {
+    if (codeCheck && codeCheck._id !== args.id) {
       throw new Error(`Transporter ID "${code}" already exists. Please use a unique Transporter ID.`);
     }
 
@@ -105,8 +127,12 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("transporters") },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("You must be signed in");
+
     const transporter = await ctx.db.get(args.id);
     if (!transporter) throw new Error("Transporter not found");
+    if (transporter.createdBy && transporter.createdBy !== userId) throw new Error("Transporter not found");
 
     const srcShipments = await ctx.db
       .query("shipments")
